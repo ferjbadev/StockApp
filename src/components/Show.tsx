@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, query, where, doc, deleteDoc } from "firebase/firestore"; // Importamos `doc` y `deleteDoc`
+import { collection, getDocs, query, where, doc, deleteDoc, addDoc } from "firebase/firestore"; // Importamos `addDoc`
 import { db } from "../firebase/firebase";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -38,7 +38,7 @@ const Show = () => {
     }, []);
 
     // 5- Manejar cambios en el input de búsqueda
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSearchChange = (e: any) => {
         setSearchTerm(e.target.value);
         getProducts(e.target.value); // Actualizamos la lista con cada cambio
     };
@@ -63,9 +63,41 @@ const Show = () => {
         }
     };
 
+    // 7- Función para editar un producto (placeholder)
     const handleEdit = (id: string) => {
-        // Aquí puedes redirigir o mostrar un formulario para editar el producto
         MySwal.fire("Edit", `Edit product with id: ${id}`, "info");
+    };
+
+    // 8- Función para agregar un nuevo producto
+    const handleCreate = async () => {
+        const { value: formValues } = await MySwal.fire({
+            title: 'Create New Product',
+            html:
+                `<input id="name" class="swal2-input" placeholder="Name">` +
+                `<input id="price" type="number" class="swal2-input" placeholder="Price">` +
+                `<input id="stock" type="number" class="swal2-input" placeholder="Stock">`,
+            focusConfirm: false,
+            preConfirm: () => {
+                return {
+                    name: (document.getElementById('name') as HTMLInputElement).value,
+                    price: parseFloat((document.getElementById('price') as HTMLInputElement).value),
+                    stock: parseInt((document.getElementById('stock') as HTMLInputElement).value, 10),
+                }
+            },
+            customClass: {
+                input: 'swal2-input'
+            }
+        });
+
+        if (formValues) {
+            try {
+                await addDoc(productsCollection, formValues);
+                await getProducts(); // Refrescamos la lista después de agregar
+                MySwal.fire('Success!', 'Product has been added.', 'success');
+            } catch (error) {
+                MySwal.fire('Error!', 'There was an error adding the product.', 'error');
+            }
+        }
     };
 
     return (
@@ -118,13 +150,13 @@ const Show = () => {
                                     {/* Botones de Editar y Borrar */}
                                     <div className="flex gap-x-2">
                                         <button
-                                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full"
                                             onClick={() => handleEdit(product.id)}>
                                             Edit
                                         </button>
 
                                         <button
-                                            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                                            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full"
                                             onClick={() => handleDelete(product.id)}>
                                             Delete
                                         </button>
@@ -134,6 +166,15 @@ const Show = () => {
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* Botón para crear un nuevo producto */}
+            <div className="flex justify-center mt-6">
+                <button
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
+                    onClick={handleCreate}>
+                    Create
+                </button>
             </div>
         </div>
     );
