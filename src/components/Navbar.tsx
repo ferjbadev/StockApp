@@ -27,7 +27,7 @@ const Navbar = () => {
                 </div>
             </div>
             <div className="navbar-center">
-                <a className="btn btn-ghost text-white text-5xl">Digital Zone</a>
+                <a className="btn btn-ghost text-white text-5xl">Digitall Zone</a>
             </div>
             <div className="navbar-end">
             </div>
