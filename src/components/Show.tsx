@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, query, where, doc, deleteDoc, addDoc } from "firebase/firestore"; // Importamos `addDoc`
+import { collection, getDocs, query, where, doc, deleteDoc, addDoc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -63,9 +63,42 @@ const Show = () => {
         }
     };
 
-    // 7- Función para editar un producto (placeholder)
-    const handleEdit = (id: string) => {
-        MySwal.fire("Edit", `Edit product with id: ${id}`, "info");
+    // 7- Función para editar un producto
+    const handleEdit = async (id: string) => {
+        const productRef = doc(db, "products", id);
+        const productDoc = await getDoc(productRef); // Cambiado a getDoc
+        const productData = productDoc.data();
+
+        if (productData) {
+            const { value: formValues } = await MySwal.fire({
+                title: 'Edit Product',
+                html:
+                    `<input id="name" class="swal2-input" placeholder="Name" value="${productData.name}">` +
+                    `<input id="price" type="number" class="swal2-input" placeholder="Price" value="${productData.price}">` +
+                    `<input id="stock" type="number" class="swal2-input" placeholder="Stock" value="${productData.stock}">`,
+                focusConfirm: false,
+                preConfirm: () => {
+                    return {
+                        name: (document.getElementById('name') as HTMLInputElement).value,
+                        price: parseFloat((document.getElementById('price') as HTMLInputElement).value),
+                        stock: parseInt((document.getElementById('stock') as HTMLInputElement).value, 10),
+                    }
+                },
+                customClass: {
+                    input: 'swal2-input'
+                }
+            });
+
+            if (formValues) {
+                try {
+                    await updateDoc(productRef, formValues);
+                    await getProducts(); // Refrescamos la lista después de actualizar
+                    MySwal.fire('Success!', 'Product has been updated.', 'success');
+                } catch (error) {
+                    MySwal.fire('Error!', 'There was an error updating the product.', 'error');
+                }
+            }
+        }
     };
 
     // 8- Función para agregar un nuevo producto
