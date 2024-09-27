@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore"; // Importamos `query` y `where`
+import { collection, getDocs, query, where, doc, deleteDoc } from "firebase/firestore"; // Importamos `doc` y `deleteDoc`
 import { db } from "../firebase/firebase";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -38,9 +38,34 @@ const Show = () => {
     }, []);
 
     // 5- Manejar cambios en el input de búsqueda
-    const handleSearchChange = (e: any) => {
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value);
         getProducts(e.target.value); // Actualizamos la lista con cada cambio
+    };
+
+    // 6- Función para eliminar un producto
+    const handleDelete = async (id: string) => {
+        const confirmed = await MySwal.fire({
+            title: "Are you sure?",
+            text: "This action cannot be undone.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, delete it!",
+        });
+
+        if (confirmed.isConfirmed) {
+            const productDoc = doc(db, "products", id);
+            await deleteDoc(productDoc);
+            getProducts(); // Refrescamos la lista después de eliminar
+            MySwal.fire("Deleted!", "The product has been removed.", "success");
+        }
+    };
+
+    const handleEdit = (id: string) => {
+        // Aquí puedes redirigir o mostrar un formulario para editar el producto
+        MySwal.fire("Edit", `Edit product with id: ${id}`, "info");
     };
 
     return (
@@ -77,12 +102,33 @@ const Show = () => {
                     {products.map((product) => (
                         <div key={product.id} className="card shadow-md">
                             <div className="card-body">
-                                <h2 className="card-title">{product.name}</h2>
-                                <div className="card-actions justify-between">
+                                {/* Usamos flex para agrupar todo en una fila */}
+                                <div className="flex items-center justify-between gap-x-4">
+                                    {/* Nombre del producto */}
+                                    <h2 className="text-lg font-bold">{product.name}</h2>
+
+                                    {/* Precio del producto */}
                                     <span className="text-lg font-bold">${product.price}</span>
+
+                                    {/* Stock del producto */}
                                     <span className="text-sm text-gray-500">
-                                        Stock: {product.stock > 0 ? product.stock : "Product Out of Stock"}
+                                        Stock: {product.stock > 0 ? product.stock : "Sold Out"}
                                     </span>
+
+                                    {/* Botones de Editar y Borrar */}
+                                    <div className="flex gap-x-2">
+                                        <button
+                                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                            onClick={() => handleEdit(product.id)}>
+                                            Edit
+                                        </button>
+
+                                        <button
+                                            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                                            onClick={() => handleDelete(product.id)}>
+                                            Delete
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
