@@ -3,6 +3,7 @@ import { collection, getDocs, query, where, doc, deleteDoc, addDoc, updateDoc, g
 import { db } from "../firebase/firebase";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { Search } from "lucide-react";
 
 const MySwal = withReactContent(Swal); // Instancia de la librería de alertas
 
@@ -24,32 +25,34 @@ const Show = () => {
 
     // 3- Función para mostrar los productos en la lista
     const getProducts = async (searchTerm = "") => {
-        setLoading(true); // Establecer estado de carga
+        setLoading(true);
         try {
             let q;
             if (searchTerm) {
+                const normalizedSearchTerm = searchTerm.toLowerCase(); // Normalizamos el término de búsqueda
                 q = query(
                     productsCollection,
-                    where("name", ">=", searchTerm),
-                    where("name", "<=", searchTerm + "\uf8ff")
+                    where("keywords", "array-contains", normalizedSearchTerm) // Buscamos coincidencia en palabras clave
                 );
             } else {
                 q = query(productsCollection, limit(12));
             }
 
             const data = await getDocs(q);
-            // Mapea los documentos y usa una aserción de tipo para agregar el id manualmente
             const productsList = data.docs.map((doc) => ({
-                ...(doc.data() as Product), // Aserción de tipo
-                id: doc.id // Agregar manualmente el id
+                ...(doc.data() as Product),
+                id: doc.id
             }));
             setProducts(productsList);
         } catch (error) {
             MySwal.fire("Error!", "There was an error fetching the products.", "error");
         } finally {
-            setLoading(false); // Desactivar estado de carga
+            setLoading(false);
         }
     };
+
+
+
 
     // 4- useEffect para mostrar los productos
     useEffect(() => {
@@ -61,6 +64,34 @@ const Show = () => {
         setSearchTerm(e.target.value);
         getProducts(e.target.value); // Actualizamos la lista con cada cambio
     };
+
+    const generateKeywords = (name: string) => {
+        const keywords = [];
+        const splitName = name.toLowerCase().split(" ");
+        let currentWord = "";
+
+        // Generamos palabras clave a partir de cada palabra individual
+        for (const word of splitName) {
+            currentWord = "";
+            for (let i = 0; i < word.length; i++) {
+                currentWord += word[i];
+                keywords.push(currentWord); // Se agrega cada subcadena a la lista
+            }
+        }
+
+        // Agregamos las combinaciones de palabras completas (por ejemplo: "product name")
+        for (let i = 0; i < splitName.length; i++) {
+            let currentCombination = "";
+            for (let j = i; j < splitName.length; j++) {
+                currentCombination += (j === i ? "" : " ") + splitName[j];
+                keywords.push(currentCombination);
+            }
+        }
+
+        return keywords;
+    };
+
+
 
     // 6- Función para eliminar un producto
     const handleDelete = async (id: string) => {
@@ -97,8 +128,11 @@ const Show = () => {
                     `<input id="stock" type="number" class="swal2-input" placeholder="Stock" value="${productData.stock}">`,
                 focusConfirm: false,
                 preConfirm: () => {
+                    const name = (document.getElementById('name') as HTMLInputElement).value;
                     return {
-                        name: (document.getElementById('name') as HTMLInputElement).value,
+                        name,
+                        normalized_name: name.toLowerCase(),
+                        keywords: generateKeywords(name), // Actualizamos las palabras clave
                         price: parseFloat((document.getElementById('price') as HTMLInputElement).value),
                         stock: parseInt((document.getElementById('stock') as HTMLInputElement).value, 10),
                     }
@@ -117,6 +151,8 @@ const Show = () => {
         }
     };
 
+
+
     // 8- Función para agregar un nuevo producto
     const handleCreate = async () => {
         const { value: formValues } = await MySwal.fire({
@@ -127,8 +163,11 @@ const Show = () => {
                 `<input id="stock" type="number" class="swal2-input" placeholder="Stock">`,
             focusConfirm: false,
             preConfirm: () => {
+                const name = (document.getElementById('name') as HTMLInputElement).value;
                 return {
-                    name: (document.getElementById('name') as HTMLInputElement).value,
+                    name,
+                    normalized_name: name.toLowerCase(),
+                    keywords: generateKeywords(name), // Guardamos las palabras clave generadas
                     price: parseFloat((document.getElementById('price') as HTMLInputElement).value),
                     stock: parseInt((document.getElementById('stock') as HTMLInputElement).value, 10),
                 }
@@ -146,33 +185,12 @@ const Show = () => {
         }
     };
 
+
+
+
+
     return (
         <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto">
-                <h1 className="text-4xl font-bold mb-6 text-center text-gray-900">Product List</h1>
-            </div>
-
-            {/* Input de búsqueda */}
-            <div className="max-w-md mx-auto mb-4">
-                <label className="bg-white rounded-full p-3 flex items-center">
-                    <input
-                        type="text"
-                        className="grow bg-white px-4 py-2 rounded-full"
-                        placeholder="Search Products..."
-                        value={searchTerm}
-                        onChange={handleSearchChange} // Actualizamos el valor del input
-                    />
-                    <svg
-                        viewBox="0 0 16 16"
-                        fill="currentColor"
-                        className="h-4 w-4 opacity-70">
-                        <path
-                            fillRule="evenodd"
-                            d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-                            clipRule="evenodd" />
-                    </svg>
-                </label>
-            </div>
 
             {/* Botón para crear un nuevo producto */}
             <div className="flex justify-center mt-8 mb-8">
@@ -182,6 +200,22 @@ const Show = () => {
                 >
                     Create New Product
                 </button>
+            </div>
+
+            {/* Input de búsqueda */}
+            <div className="max-w-md mx-auto mb-6">
+                <div className="relative">
+                    <input
+                        type="text"
+                        className="w-full bg-white text-black placeholder-black px-5 py-3 pr-12 rounded-full border border-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition duration-300 ease-in-out"
+                        placeholder="Search products..."
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                </div>
             </div>
 
             {loading ? (
